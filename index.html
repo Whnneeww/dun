@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<!-- Created with https://packager.turbowarp.org/ -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- We only include this to explicitly loosen the CSP of various packager environments. It does not provide any security. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob:">
+  <title>ダウンロード</title>
+  <style>
+    body {
+      color: #ffffff;
+      font-family: sans-serif;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+    :root, body.is-fullscreen {
+      background-color: #ffffff;
+    }
+    [hidden] {
+      display: none !important;
+    }
+    h1 {
+      font-weight: normal;
+    }
+    a {
+      color: inherit;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    #app, #loading, #error, #launch {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: default;
+      user-select: none;
+      -webkit-user-select: none;
+      background-color: #ffffff;
+    }
+    #launch {
+      background-color: rgba(0, 0, 0, 0.7);
+      cursor: pointer;
+    }
+    .green-flag {
+      width: 80px;
+      height: 80px;
+      padding: 16px;
+      border-radius: 100%;
+      background: rgba(255, 255, 255, 0.75);
+      border: 3px solid hsla(0, 100%, 100%, 1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-sizing: border-box;
+    }
+    #loading {
+      
+    }
+    .progress-bar-outer {
+      border: 1px solid currentColor;
+      height: 10px;
+      width: 200px;
+      max-width: 200px;
+    }
+    .progress-bar-inner {
+      height: 100%;
+      width: 0;
+      background-color: currentColor;
+    }
+    .loading-text, noscript {
+      font-weight: normal;
+      font-size: 36px;
+      margin: 0 0 16px;
+    }
+    .loading-image {
+      margin: 0 0 16px;
+    }
+    #error-message, #error-stack {
+      font-family: monospace;
+      max-width: 600px;
+      white-space: pre-wrap;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    #error-stack {
+      text-align: left;
+      max-height: 200px;
+      overflow: auto;
+    }
+    .control-button {
+      width: 2rem;
+      height: 2rem;
+      padding: 0.375rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: pointer;
+      border: 0;
+      border-radius: 4px;
+    }
+    .control-button:hover {
+      background: #ffffff26;
+    }
+    .control-button.active {
+      background: #ffffff59;
+    }
+    .fullscreen-button {
+      background: white !important;
+    }
+    .standalone-fullscreen-button {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      border-radius: 0 0 0 4px;
+      padding: 4px;
+      cursor: pointer;
+    }
+    .sc-canvas {
+      cursor: auto;
+    }
+    .sc-monitor-root[data-opcode^="data_"] .sc-monitor-value-color {
+      background-color: #ffffff;
+    }
+    .sc-monitor-row-value-outer {
+      background-color: #ffffff;
+    }
+    .sc-monitor-row-value-editing .sc-monitor-row-value-outer {
+      background-color: #e5e5e5;
+    }
+    
+  </style>
+  <meta name="theme-color" content="#ffffff">
+  
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="launch" class="screen" hidden title="Click to start">
+    <div class="green-flag">
+      <svg viewBox="0 0 16.63 17.5" width="42" height="44">
+        <defs><style>.cls-1,.cls-2{fill:#4cbf56;stroke:#45993d;stroke-linecap:round;stroke-linejoin:round;}.cls-2{stroke-width:1.5px;}</style></defs>
+        <path class="cls-1" d="M.75,2A6.44,6.44,0,0,1,8.44,2h0a6.44,6.44,0,0,0,7.69,0V12.4a6.44,6.44,0,0,1-7.69,0h0a6.44,6.44,0,0,0-7.69,0"/>
+        <line class="cls-2" x1="0.75" y1="16.75" x2="0.75" y2="0.75"/>
+      </svg>
+    </div>
+  </div>
+
+  <div id="loading" class="screen">
+    <noscript>Enable JavaScript</noscript>
+    <h1 class="loading-text">この Webサイトはクッキーを使用します。</h1>
+    
+    <div class="progress-bar-outer"><div class="progress-bar-inner" id="loading-inner"></div></div>
+  </div>
+
+  <div id="error" class="screen" hidden>
+    <h1>Error</h1>
+    <details>
+      <summary id="error-message"></summary>
+      <p id="error-stack"></p>
+    </details>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    const appElement = document.getElementById('app');
+    const launchScreen = document.getElementById('launch');
+    const loadingScreen = document.getElementById('loading');
+    const loadingInner = document.getElementById('loading-inner');
+    const errorScreen = document.getElementById('error');
+    const errorScreenMessage = document.getElementById('error-message');
+    const errorScreenStack = document.getElementById('error-stack');
+
+    const handleError = (error) => {
+      console.error(error);
+      if (!errorScreen.hidden) return;
+      errorScreen.hidden = false;
+      errorScreenMessage.textContent = '' + error;
+      let debug = error && error.stack || 'no stack';
+      debug += '\nUser agent: ' + navigator.userAgent;
+      errorScreenStack.textContent = debug;
+    };
+    const setProgress = (progress) => {
+      if (loadingInner) loadingInner.style.width = progress * 100 + '%';
+    };
+    const interpolate = (a, b, t) => a + t * (b - a);
+
+    try {
+      setProgress(0.1);
+
+      const scaffolding = new Scaffolding.Scaffolding();
+      scaffolding.width = 480;
+      scaffolding.height = 360;
+      scaffolding.resizeMode = "preserve-ratio";
+      scaffolding.editableLists = false;
+      scaffolding.usePackagedRuntime = true;
+      scaffolding.setup();
+      scaffolding.appendTo(appElement);
+
+      const vm = scaffolding.vm;
+      window.scaffolding = scaffolding;
+      window.vm = scaffolding.vm;
+      window.Scratch = {
+        vm,
+        renderer: vm.renderer,
+        audioEngine: vm.runtime.audioEngine,
+        bitmapAdapter: vm.runtime.v2BitmapAdapter,
+        videoProvider: vm.runtime.ioDevices.video.provider
+      };
+
+      scaffolding.setUsername("player####".replace(/#/g, () => Math.floor(Math.random() * 10)));
+      scaffolding.setAccentColor("#ffffff");
+
+      scaffolding.addCloudProvider(new Scaffolding.Cloud.WebSocketProvider(["wss://clouddata.turbowarp.org","wss://clouddata.turbowarp.xyz"], "p4-@ダウンロード.sb3"));
+
+      vm.setTurboMode(false);
+      if (vm.setInterpolation) vm.setInterpolation(false);
+      if (vm.setFramerate) vm.setFramerate(30);
+      if (vm.renderer.setUseHighQualityRender) vm.renderer.setUseHighQualityRender(false);
+      if (vm.setRuntimeOptions) vm.setRuntimeOptions({
+        fencing: true,
+        miscLimits: true,
+        maxClones: 300,
+      });
+      if (vm.setCompilerOptions) vm.setCompilerOptions({
+        enabled: true,
+        warpTimer: false
+      });
+      if (vm.renderer.setMaxTextureDimension) vm.renderer.setMaxTextureDimension(2048);
+
+      if (typeof ScaffoldingAddons !== 'undefined') {
+        ScaffoldingAddons.run(scaffolding, {"gamepad":false,"pointerlock":false,"specialCloudBehaviors":false,"unsafeCloudBehaviors":false,"pause":false});
+      }
+
+      scaffolding.setExtensionSecurityManager({
+        getSandboxMode: () => 'unsandboxed',
+        canLoadExtensionFromProject: () => true
+      });
+      for (const extension of ["data:text/javascript;,(function(Scratch)%20%7B%20%2F%2F%20Name%3A%20Files%0A%2F%2F%20ID%3A%20files%0A%2F%2F%20Description%3A%20Read%20and%20download%20files.%0A%0A(function%20(Scratch)%20%7B%0A%20%20%22use%20strict%22%3B%0A%0A%20%20if%20(!Scratch.extensions.unsandboxed)%20%7B%0A%20%20%20%20throw%20new%20Error(%22files%20extension%20must%20be%20run%20unsandboxed%22)%3B%0A%20%20%7D%0A%0A%20%20const%20MODE_MODAL%20%3D%20%22modal%22%3B%0A%20%20const%20MODE_IMMEDIATELY_SHOW_SELECTOR%20%3D%20%22selector%22%3B%0A%20%20const%20MODE_ONLY_SELECTOR%20%3D%20%22only-selector%22%3B%0A%20%20const%20ALL_MODES%20%3D%20%5B%0A%20%20%20%20MODE_MODAL%2C%0A%20%20%20%20MODE_IMMEDIATELY_SHOW_SELECTOR%2C%0A%20%20%20%20MODE_ONLY_SELECTOR%2C%0A%20%20%5D%3B%0A%20%20let%20openFileSelectorMode%20%3D%20MODE_MODAL%3B%0A%0A%20%20const%20AS_TEXT%20%3D%20%22text%22%3B%0A%20%20const%20AS_DATA_URL%20%3D%20%22url%22%3B%0A%0A%20%20%2F**%0A%20%20%20*%20%40param%20%7BHTMLInputElement%7D%20input%0A%20%20%20*%20%40returns%20%7Bboolean%7D%0A%20%20%20*%2F%0A%20%20const%20isCancelEventSupported%20%3D%20(input)%20%3D%3E%20%7B%0A%20%20%20%20if%20(%22oncancel%22%20in%20input)%20%7B%0A%20%20%20%20%20%20%2F%2F%20Chrome%20113%2B%2C%20Safari%2016.4%2B%0A%20%20%20%20%20%20return%20true%3B%0A%20%20%20%20%7D%0A%20%20%20%20%2F%2F%20Firefox%20is%20weird.%20cancel%20is%20supported%20since%20Firefox%2091%2C%20but%20oncancel%20doesn't%20exist.%0A%20%20%20%20%2F%2F%20Firefox%2091%20is%20from%20August%202021.%20That's%20old%20enough%20to%20not%20care%20about%20previous%20versions.%0A%20%20%20%20return%20navigator.userAgent.includes(%22Firefox%22)%3B%0A%20%20%7D%3B%0A%0A%20%20%2F**%0A%20%20%20*%20%40param%20%7Bstring%7D%20accept%20See%20MODE_%20constants%20above%0A%20%20%20*%20%40param%20%7Bstring%7D%20as%20See%20AS_%20constants%20above%0A%20%20%20*%20%40returns%20%7BPromise%3Cstring%3E%7D%20format%20given%20by%20as%20parameter%0A%20%20%20*%2F%0A%20%20const%20showFilePrompt%20%3D%20(accept%2C%20as)%20%3D%3E%0A%20%20%20%20new%20Promise((_resolve)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%2F%2F%20We%20can't%20reliably%20show%20an%20%3Cinput%3E%20picker%20without%20%22user%20interaction%22%20in%20all%20environments%2C%0A%20%20%20%20%20%20%2F%2F%20so%20we%20have%20to%20show%20our%20own%20UI%20anyways.%20We%20may%20as%20well%20use%20this%20to%20implement%20some%20nice%20features%0A%20%20%20%20%20%20%2F%2F%20that%20native%20file%20pickers%20don't%20have%3A%0A%20%20%20%20%20%20%2F%2F%20%20-%20Easy%20drag%2Bdrop%0A%20%20%20%20%20%20%2F%2F%20%20-%20Reliable%20cancel%20button%20(input%20cancel%20event%20is%20still%20not%20perfect)%0A%20%20%20%20%20%20%2F%2F%20%20%20%20This%20is%20important%20so%20we%20can%20make%20this%20just%20a%20reporter%20instead%20of%20a%20command%2Bhat%20block.%0A%20%20%20%20%20%20%2F%2F%20%20%20%20Without%20an%20interface%2C%20the%20script%20would%20be%20stalled%20if%20the%20prompt%20was%20cancelled.%0A%0A%20%20%20%20%20%20%2F**%20%40param%20%7Bstring%7D%20text%20*%2F%0A%20%20%20%20%20%20const%20callback%20%3D%20(text)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20_resolve(text)%3B%0A%20%20%20%20%20%20%20%20Scratch.vm.renderer.removeOverlay(outer)%3B%0A%20%20%20%20%20%20%20%20Scratch.vm.runtime.off(%22PROJECT_STOP_ALL%22%2C%20handleProjectStopped)%3B%0A%20%20%20%20%20%20%20%20document.body.removeEventListener(%22keydown%22%2C%20handleKeyDown)%3B%0A%20%20%20%20%20%20%7D%3B%0A%0A%20%20%20%20%20%20let%20isReadingFile%20%3D%20false%3B%0A%0A%20%20%20%20%20%20%2F**%20%40param%20%7BFile%7D%20file%20*%2F%0A%20%20%20%20%20%20const%20readFile%20%3D%20(file)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20if%20(isReadingFile)%20%7B%0A%20%20%20%20%20%20%20%20%20%20return%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20isReadingFile%20%3D%20true%3B%0A%0A%20%20%20%20%20%20%20%20const%20reader%20%3D%20new%20FileReader()%3B%0A%20%20%20%20%20%20%20%20reader.onload%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20callback(%2F**%20%40type%20%7Bstring%7D%20*%2F%20(reader.result))%3B%0A%20%20%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%20%20%20%20reader.onerror%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20console.error(%22Failed%20to%20read%20file%20as%20text%22%2C%20reader.error)%3B%0A%20%20%20%20%20%20%20%20%20%20callback(%22%22)%3B%0A%20%20%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%20%20%20%20if%20(as%20%3D%3D%3D%20AS_TEXT)%20%7B%0A%20%20%20%20%20%20%20%20%20%20reader.readAsText(file)%3B%0A%20%20%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20reader.readAsDataURL(file)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%3B%0A%0A%20%20%20%20%20%20%2F**%20%40param%20%7BKeyboardEvent%7D%20e%20*%2F%0A%20%20%20%20%20%20const%20handleKeyDown%20%3D%20(e)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20if%20(e.key%20%3D%3D%3D%20%22Escape%22)%20%7B%0A%20%20%20%20%20%20%20%20%20%20e.stopPropagation()%3B%0A%20%20%20%20%20%20%20%20%20%20e.preventDefault()%3B%0A%20%20%20%20%20%20%20%20%20%20callback(%22%22)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%20%20document.body.addEventListener(%22keydown%22%2C%20handleKeyDown%2C%20%7B%0A%20%20%20%20%20%20%20%20capture%3A%20true%2C%0A%20%20%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%20%20const%20handleProjectStopped%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20callback(%22%22)%3B%0A%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%20%20Scratch.vm.runtime.on(%22PROJECT_STOP_ALL%22%2C%20handleProjectStopped)%3B%0A%0A%20%20%20%20%20%20const%20INITIAL_BORDER_COLOR%20%3D%20%22%23888%22%3B%0A%20%20%20%20%20%20const%20DROPPING_BORDER_COLOR%20%3D%20%22%2303a9fc%22%3B%0A%0A%20%20%20%20%20%20const%20outer%20%3D%20document.createElement(%22div%22)%3B%0A%20%20%20%20%20%20outer.style.pointerEvents%20%3D%20%22auto%22%3B%0A%20%20%20%20%20%20outer.style.width%20%3D%20%22100%25%22%3B%0A%20%20%20%20%20%20outer.style.height%20%3D%20%22100%25%22%3B%0A%20%20%20%20%20%20outer.style.display%20%3D%20%22flex%22%3B%0A%20%20%20%20%20%20outer.style.alignItems%20%3D%20%22center%22%3B%0A%20%20%20%20%20%20outer.style.justifyContent%20%3D%20%22center%22%3B%0A%20%20%20%20%20%20outer.style.background%20%3D%20%22rgba(0%2C%200%2C%200%2C%200.5)%22%3B%0A%20%20%20%20%20%20outer.style.color%20%3D%20%22black%22%3B%0A%20%20%20%20%20%20outer.style.colorScheme%20%3D%20%22light%22%3B%0A%20%20%20%20%20%20outer.addEventListener(%22dragover%22%2C%20(e)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20if%20(e.dataTransfer.types.includes(%22Files%22))%20%7B%0A%20%20%20%20%20%20%20%20%20%20e.preventDefault()%3B%0A%20%20%20%20%20%20%20%20%20%20e.dataTransfer.dropEffect%20%3D%20%22copy%22%3B%0A%20%20%20%20%20%20%20%20%20%20modal.style.borderColor%20%3D%20DROPPING_BORDER_COLOR%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20outer.addEventListener(%22dragleave%22%2C%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20modal.style.borderColor%20%3D%20INITIAL_BORDER_COLOR%3B%0A%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20outer.addEventListener(%22drop%22%2C%20(e)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20const%20file%20%3D%20e.dataTransfer.files%5B0%5D%3B%0A%20%20%20%20%20%20%20%20if%20(file)%20%7B%0A%20%20%20%20%20%20%20%20%20%20e.preventDefault()%3B%0A%20%20%20%20%20%20%20%20%20%20readFile(file)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20outer.addEventListener(%22click%22%2C%20(e)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20if%20(e.target%20%3D%3D%3D%20outer)%20%7B%0A%20%20%20%20%20%20%20%20%20%20callback(%22%22)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%20%20const%20modal%20%3D%20document.createElement(%22button%22)%3B%0A%20%20%20%20%20%20modal.style.boxShadow%20%3D%20%220%200%2010px%20-5px%20currentColor%22%3B%0A%20%20%20%20%20%20modal.style.cursor%20%3D%20%22pointer%22%3B%0A%20%20%20%20%20%20modal.style.font%20%3D%20%22inherit%22%3B%0A%20%20%20%20%20%20modal.style.background%20%3D%20%22white%22%3B%0A%20%20%20%20%20%20modal.style.padding%20%3D%20%2216px%22%3B%0A%20%20%20%20%20%20modal.style.borderRadius%20%3D%20%2216px%22%3B%0A%20%20%20%20%20%20modal.style.border%20%3D%20%608px%20dashed%20%24%7BINITIAL_BORDER_COLOR%7D%60%3B%0A%20%20%20%20%20%20modal.style.position%20%3D%20%22relative%22%3B%0A%20%20%20%20%20%20modal.style.textAlign%20%3D%20%22center%22%3B%0A%20%20%20%20%20%20modal.addEventListener(%22click%22%2C%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20input.click()%3B%0A%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20modal.focus()%3B%0A%20%20%20%20%20%20outer.appendChild(modal)%3B%0A%0A%20%20%20%20%20%20const%20input%20%3D%20document.createElement(%22input%22)%3B%0A%20%20%20%20%20%20input.type%20%3D%20%22file%22%3B%0A%20%20%20%20%20%20input.accept%20%3D%20accept%3B%0A%20%20%20%20%20%20input.addEventListener(%22change%22%2C%20(e)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%2F%2F%20%40ts-expect-error%0A%20%20%20%20%20%20%20%20const%20file%20%3D%20e.target.files%5B0%5D%3B%0A%20%20%20%20%20%20%20%20if%20(file)%20%7B%0A%20%20%20%20%20%20%20%20%20%20readFile(file)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%20%20const%20title%20%3D%20document.createElement(%22div%22)%3B%0A%20%20%20%20%20%20title.textContent%20%3D%20%22Select%20or%20drop%20file%22%3B%0A%20%20%20%20%20%20title.style.fontSize%20%3D%20%221.5em%22%3B%0A%20%20%20%20%20%20title.style.marginBottom%20%3D%20%228px%22%3B%0A%20%20%20%20%20%20modal.appendChild(title)%3B%0A%0A%20%20%20%20%20%20const%20subtitle%20%3D%20document.createElement(%22div%22)%3B%0A%20%20%20%20%20%20const%20formattedAccept%20%3D%20accept%20%7C%7C%20%22any%22%3B%0A%20%20%20%20%20%20subtitle.textContent%20%3D%20%60Accepted%20formats%3A%20%24%7BformattedAccept%7D%60%3B%0A%20%20%20%20%20%20modal.appendChild(subtitle)%3B%0A%0A%20%20%20%20%20%20%2F%2F%20To%20avoid%20the%20script%20getting%20stalled%20forever%2C%20if%20cancel%20isn't%20supported%2C%20we'll%20just%20forcibly%0A%20%20%20%20%20%20%2F%2F%20show%20our%20modal.%0A%20%20%20%20%20%20if%20(%0A%20%20%20%20%20%20%20%20openFileSelectorMode%20%3D%3D%3D%20MODE_ONLY_SELECTOR%20%26%26%0A%20%20%20%20%20%20%20%20!isCancelEventSupported(input)%0A%20%20%20%20%20%20)%20%7B%0A%20%20%20%20%20%20%20%20openFileSelectorMode%20%3D%20MODE_IMMEDIATELY_SHOW_SELECTOR%3B%0A%20%20%20%20%20%20%7D%0A%0A%20%20%20%20%20%20if%20(openFileSelectorMode%20!%3D%3D%20MODE_ONLY_SELECTOR)%20%7B%0A%20%20%20%20%20%20%20%20const%20overlay%20%3D%20Scratch.vm.renderer.addOverlay(outer%2C%20%22scale%22)%3B%0A%20%20%20%20%20%20%20%20overlay.container.style.zIndex%20%3D%20%22100%22%3B%0A%20%20%20%20%20%20%7D%0A%0A%20%20%20%20%20%20if%20(%0A%20%20%20%20%20%20%20%20openFileSelectorMode%20%3D%3D%3D%20MODE_IMMEDIATELY_SHOW_SELECTOR%20%7C%7C%0A%20%20%20%20%20%20%20%20openFileSelectorMode%20%3D%3D%3D%20MODE_ONLY_SELECTOR%0A%20%20%20%20%20%20)%20%7B%0A%20%20%20%20%20%20%20%20input.click()%3B%0A%20%20%20%20%20%20%7D%0A%0A%20%20%20%20%20%20if%20(openFileSelectorMode%20%3D%3D%3D%20MODE_ONLY_SELECTOR)%20%7B%0A%20%20%20%20%20%20%20%20%2F%2F%20Note%20that%20browser%20support%20for%20cancel%20is%20currently%20quite%20bad%0A%20%20%20%20%20%20%20%20input.addEventListener(%22cancel%22%2C%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20callback(%22%22)%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D)%3B%0A%0A%20%20%2F**%0A%20%20%20*%20%40param%20%7Bstring%7D%20url%20a%20data%3A%2C%20blob%3A%2C%20or%20same-origin%20URL%0A%20%20%20*%20%40param%20%7Bstring%7D%20file%0A%20%20%20*%2F%0A%20%20const%20downloadURL%20%3D%20(url%2C%20file)%20%3D%3E%20%7B%0A%20%20%20%20const%20link%20%3D%20document.createElement(%22a%22)%3B%0A%20%20%20%20link.href%20%3D%20url%3B%0A%20%20%20%20link.download%20%3D%20file%3B%0A%20%20%20%20document.body.appendChild(link)%3B%0A%20%20%20%20link.click()%3B%0A%20%20%20%20link.remove()%3B%0A%20%20%7D%3B%0A%0A%20%20%2F**%0A%20%20%20*%20%40param%20%7BBlob%7D%20blob%20Data%20to%20download%0A%20%20%20*%20%40param%20%7Bstring%7D%20file%20Name%20of%20the%20file%0A%20%20%20*%2F%0A%20%20const%20downloadBlob%20%3D%20(blob%2C%20file)%20%3D%3E%20%7B%0A%20%20%20%20const%20url%20%3D%20URL.createObjectURL(blob)%3B%0A%20%20%20%20downloadURL(url%2C%20file)%3B%0A%20%20%20%20URL.revokeObjectURL(url)%3B%0A%20%20%7D%3B%0A%0A%20%20%2F**%0A%20%20%20*%20%40param%20%7Bstring%7D%20url%0A%20%20%20*%20%40returns%20%7Bboolean%7D%0A%20%20%20*%2F%0A%20%20const%20isDataURL%20%3D%20(url)%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20const%20parsed%20%3D%20new%20URL(url)%3B%0A%20%20%20%20%20%20return%20parsed.protocol%20%3D%3D%3D%20%22data%3A%22%3B%0A%20%20%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20%20%20return%20false%3B%0A%20%20%20%20%7D%0A%20%20%7D%3B%0A%0A%20%20%2F**%0A%20%20%20*%20%40param%20%7Bstring%7D%20url%0A%20%20%20*%20%40param%20%7Bstring%7D%20file%0A%20%20%20*%2F%0A%20%20const%20downloadUntrustedURL%20%3D%20(url%2C%20file)%20%3D%3E%20%7B%0A%20%20%20%20%2F%2F%20Don't%20want%20to%20return%20a%20Promise%20here%20when%20not%20actually%20needed%0A%20%20%20%20if%20(isDataURL(url))%20%7B%0A%20%20%20%20%20%20downloadURL(url%2C%20file)%3B%0A%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20return%20Scratch.fetch(url)%0A%20%20%20%20%20%20%20%20.then((res)%20%3D%3E%20res.blob())%0A%20%20%20%20%20%20%20%20.then((blob)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20downloadBlob(blob%2C%20file)%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%7D%0A%20%20%7D%3B%0A%0A%20%20class%20Files%20%7B%0A%20%20%20%20getInfo()%20%7B%0A%20%20%20%20%20%20return%20%7B%0A%20%20%20%20%20%20%20%20id%3A%20%22files%22%2C%0A%20%20%20%20%20%20%20%20name%3A%20%22Files%22%2C%0A%20%20%20%20%20%20%20%20color1%3A%20%22%23fcb103%22%2C%0A%20%20%20%20%20%20%20%20color2%3A%20%22%23db9a37%22%2C%0A%20%20%20%20%20%20%20%20color3%3A%20%22%23db8937%22%2C%0A%20%20%20%20%20%20%20%20blocks%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22showPicker%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22open%20a%20file%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20disableMonitor%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20hideFromPalette%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22showPickerExtensions%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22open%20a%20%5Bextension%5D%20file%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20extension%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22.txt%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20hideFromPalette%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22showPickerAs%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22open%20a%20file%20as%20%5Bas%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20as%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20menu%3A%20%22encoding%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22showPickerExtensionsAs%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22open%20a%20%5Bextension%5D%20file%20as%20%5Bas%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20extension%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22.txt%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20as%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20menu%3A%20%22encoding%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%0A%20%20%20%20%20%20%20%20%20%20%22---%22%2C%0A%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22download%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22download%20%5Btext%5D%20as%20%5Bfile%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22Hello%2C%20world!%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20file%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22save.txt%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22downloadURL%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22download%20URL%20%5Burl%5D%20as%20%5Bfile%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20url%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22data%3Atext%2Fplain%3Bbase64%2CSGVsbG8sIHdvcmxkIQ%3D%3D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20file%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22save.txt%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%0A%20%20%20%20%20%20%20%20%20%20%22---%22%2C%0A%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22setOpenMode%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22set%20open%20file%20selector%20mode%20to%20%5Bmode%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20mode%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20MODE_MODAL%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20menu%3A%20%22automaticallyOpen%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20menus%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20encoding%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20acceptReporters%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20items%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22text%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20AS_TEXT%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22data%3A%20URL%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20AS_DATA_URL%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20automaticallyOpen%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20acceptReporters%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20items%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22show%20modal%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20MODE_MODAL%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22open%20selector%20immediately%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20MODE_IMMEDIATELY_SHOW_SELECTOR%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Will%20not%20work%20if%20the%20browser%20doesn't%20think%20we%20are%20responding%20to%20a%20click%20event.%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22only%20show%20selector%20(unreliable)%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20MODE_ONLY_SELECTOR%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20showPicker()%20%7B%0A%20%20%20%20%20%20return%20showFilePrompt(%22%22%2C%20AS_TEXT)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20showPickerExtensions(args)%20%7B%0A%20%20%20%20%20%20return%20showFilePrompt(args.extension%2C%20AS_TEXT)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20showPickerAs(args)%20%7B%0A%20%20%20%20%20%20return%20showFilePrompt(%22%22%2C%20args.as)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20showPickerExtensionsAs(args)%20%7B%0A%20%20%20%20%20%20return%20showFilePrompt(args.extension%2C%20args.as)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20download(args)%20%7B%0A%20%20%20%20%20%20downloadBlob(%0A%20%20%20%20%20%20%20%20new%20Blob(%5BScratch.Cast.toString(args.text)%5D)%2C%0A%20%20%20%20%20%20%20%20Scratch.Cast.toString(args.file)%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20downloadURL(args)%20%7B%0A%20%20%20%20%20%20return%20downloadUntrustedURL(%0A%20%20%20%20%20%20%20%20Scratch.Cast.toString(args.url)%2C%0A%20%20%20%20%20%20%20%20Scratch.Cast.toString(args.file)%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20setOpenMode(args)%20%7B%0A%20%20%20%20%20%20if%20(ALL_MODES.includes(args.mode))%20%7B%0A%20%20%20%20%20%20%20%20openFileSelectorMode%20%3D%20args.mode%3B%0A%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20console.warn(%60unknown%20mode%60%2C%20args.mode)%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%0A%20%20Scratch.extensions.register(new%20Files())%3B%0A%7D)(Scratch)%3B%0A%20%7D)(Scratch)%3B","data:text/javascript;,(function(Scratch)%20%7B%20%2F%2F%20Name%3A%20Local%20Storage%0A%2F%2F%20ID%3A%20localstorage%0A%2F%2F%20Description%3A%20Store%20data%20persistently.%20Like%20cookies%2C%20but%20better.%0A%0A(function%20(Scratch)%20%7B%0A%20%20%22use%20strict%22%3B%0A%0A%20%20if%20(!Scratch.extensions.unsandboxed)%20%7B%0A%20%20%20%20throw%20new%20Error(%22Local%20Storage%20must%20be%20run%20unsandboxed%22)%3B%0A%20%20%7D%0A%0A%20%20const%20PREFIX%20%3D%20%22extensions.turbowarp.org%2Flocal-storage%3A%22%3B%0A%20%20let%20namespace%20%3D%20%22%22%3B%0A%20%20const%20getFullStorageKey%20%3D%20()%20%3D%3E%20%60%24%7BPREFIX%7D%24%7Bnamespace%7D%60%3B%0A%0A%20%20let%20lastNamespaceWarning%20%3D%200%3B%0A%0A%20%20const%20validNamespace%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20const%20valid%20%3D%20!!namespace%3B%0A%20%20%20%20if%20(!valid%20%26%26%20Date.now()%20-%20lastNamespaceWarning%20%3E%203000)%20%7B%0A%20%20%20%20%20%20alert(%0A%20%20%20%20%20%20%20%20'Local%20Storage%20extension%3A%20project%20must%20run%20the%20%22set%20storage%20namespace%20ID%22%20block%20before%20it%20can%20use%20other%20blocks'%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%20%20lastNamespaceWarning%20%3D%20Date.now()%3B%0A%20%20%20%20%7D%0A%20%20%20%20return%20valid%3B%0A%20%20%7D%3B%0A%0A%20%20const%20readFromStorage%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%2F%2F%20localStorage%20could%20throw%20if%20unsupported%0A%20%20%20%20%20%20const%20data%20%3D%20localStorage.getItem(getFullStorageKey())%3B%0A%20%20%20%20%20%20if%20(data)%20%7B%0A%20%20%20%20%20%20%20%20%2F%2F%20JSON.parse%20could%20throw%20if%20data%20is%20invalid%0A%20%20%20%20%20%20%20%20const%20parsed%20%3D%20JSON.parse(data)%3B%0A%20%20%20%20%20%20%20%20if%20(parsed%20%26%26%20parsed.data)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%2F%2F%20Remove%20invalid%20values%20from%20the%20JSON%0A%20%20%20%20%20%20%20%20%20%20const%20processed%20%3D%20%7B%7D%3B%0A%20%20%20%20%20%20%20%20%20%20for%20(const%20%5Bkey%2C%20value%5D%20of%20Object.entries(parsed.data))%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20typeof%20value%20%3D%3D%3D%20%22number%22%20%7C%7C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20typeof%20value%20%3D%3D%3D%20%22string%22%20%7C%7C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20typeof%20value%20%3D%3D%3D%20%22boolean%22%0A%20%20%20%20%20%20%20%20%20%20%20%20)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20processed%5Bkey%5D%20%3D%20value%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20return%20processed%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%20catch%20(error)%20%7B%0A%20%20%20%20%20%20console.error(%22error%20reading%20from%20local%20storage%22%2C%20error)%3B%0A%20%20%20%20%7D%0A%20%20%20%20return%20%7B%7D%3B%0A%20%20%7D%3B%0A%0A%20%20const%20saveToLocalStorage%20%3D%20(data)%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20if%20(Object.keys(data).length%20%3E%200)%20%7B%0A%20%20%20%20%20%20%20%20localStorage.setItem(%0A%20%20%20%20%20%20%20%20%20%20getFullStorageKey()%2C%0A%20%20%20%20%20%20%20%20%20%20JSON.stringify(%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20time%3A%20Math.round(Date.now()%20%2F%201000)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20data%2C%0A%20%20%20%20%20%20%20%20%20%20%7D)%0A%20%20%20%20%20%20%20%20)%3B%0A%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20localStorage.removeItem(getFullStorageKey())%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%20catch%20(error)%20%7B%0A%20%20%20%20%20%20console.error(%22error%20saving%20to%20locacl%20storage%22%2C%20error)%3B%0A%20%20%20%20%7D%0A%20%20%7D%3B%0A%0A%20%20window.addEventListener(%22storage%22%2C%20(event)%20%3D%3E%20%7B%0A%20%20%20%20if%20(%0A%20%20%20%20%20%20namespace%20%26%26%0A%20%20%20%20%20%20event.key%20%3D%3D%3D%20getFullStorageKey()%20%26%26%0A%20%20%20%20%20%20event.storageArea%20%3D%3D%3D%20localStorage%0A%20%20%20%20)%20%7B%0A%20%20%20%20%20%20Scratch.vm.runtime.startHats(%22localstorage_whenChanged%22)%3B%0A%20%20%20%20%7D%0A%20%20%7D)%3B%0A%0A%20%20Scratch.vm.runtime.on(%22RUNTIME_DISPOSED%22%2C%20()%20%3D%3E%20%7B%0A%20%20%20%20namespace%20%3D%20%22%22%3B%0A%20%20%7D)%3B%0A%0A%20%20class%20LocalStorage%20%7B%0A%20%20%20%20getInfo()%20%7B%0A%20%20%20%20%20%20return%20%7B%0A%20%20%20%20%20%20%20%20id%3A%20%22localstorage%22%2C%0A%20%20%20%20%20%20%20%20name%3A%20%22Local%20Storage%22%2C%0A%20%20%20%20%20%20%20%20docsURI%3A%20%22https%3A%2F%2Fextensions.turbowarp.org%2Flocal-storage%22%2C%0A%20%20%20%20%20%20%20%20blocks%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22setProjectId%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22set%20storage%20namespace%20ID%20to%20%5BID%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20ID%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22project%20title%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22get%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22get%20key%20%5BKEY%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20KEY%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22score%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22set%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22set%20key%20%5BKEY%5D%20to%20%5BVALUE%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20KEY%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22score%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20VALUE%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%221000%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22remove%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22delete%20key%20%5BKEY%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20KEY%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22score%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22removeAll%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22delete%20all%20keys%22%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22whenChanged%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.EVENT%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22when%20another%20window%20changes%20storage%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20isEdgeActivated%3A%20false%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%7D%0A%20%20%20%20setProjectId(%7B%20ID%20%7D)%20%7B%0A%20%20%20%20%20%20namespace%20%3D%20Scratch.Cast.toString(ID)%3B%0A%20%20%20%20%7D%0A%20%20%20%20get(%7B%20KEY%20%7D)%20%7B%0A%20%20%20%20%20%20if%20(!validNamespace())%20%7B%0A%20%20%20%20%20%20%20%20return%20%22%22%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20const%20storage%20%3D%20readFromStorage()%3B%0A%20%20%20%20%20%20KEY%20%3D%20Scratch.Cast.toString(KEY)%3B%0A%20%20%20%20%20%20if%20(!Object.prototype.hasOwnProperty.call(storage%2C%20KEY))%20%7B%0A%20%20%20%20%20%20%20%20return%20%22%22%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20return%20storage%5BKEY%5D%3B%0A%20%20%20%20%7D%0A%20%20%20%20set(%7B%20KEY%2C%20VALUE%20%7D)%20%7B%0A%20%20%20%20%20%20if%20(!validNamespace())%20%7B%0A%20%20%20%20%20%20%20%20return%20%22%22%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20const%20storage%20%3D%20readFromStorage()%3B%0A%20%20%20%20%20%20storage%5BScratch.Cast.toString(KEY)%5D%20%3D%20VALUE%3B%0A%20%20%20%20%20%20saveToLocalStorage(storage)%3B%0A%20%20%20%20%7D%0A%20%20%20%20remove(%7B%20KEY%20%7D)%20%7B%0A%20%20%20%20%20%20if%20(!validNamespace())%20%7B%0A%20%20%20%20%20%20%20%20return%20%22%22%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20const%20storage%20%3D%20readFromStorage()%3B%0A%20%20%20%20%20%20delete%20storage%5BScratch.Cast.toString(KEY)%5D%3B%0A%20%20%20%20%20%20saveToLocalStorage(storage)%3B%0A%20%20%20%20%7D%0A%20%20%20%20removeAll()%20%7B%0A%20%20%20%20%20%20if%20(!validNamespace())%20%7B%0A%20%20%20%20%20%20%20%20return%20%22%22%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20saveToLocalStorage(%7B%7D)%3B%0A%20%20%20%20%7D%0A%20%20%7D%0A%20%20Scratch.extensions.register(new%20LocalStorage())%3B%0A%7D)(Scratch)%3B%0A%20%7D)(Scratch)%3B","data:text/javascript;,(function(Scratch)%20%7B%20%2F%2F%20Name%3A%20Search%20Params%0A%2F%2F%20ID%3A%20zxmushroom63searchparams%0A%2F%2F%20Description%3A%20Interact%20with%20URL%20search%20parameters%3A%20the%20part%20of%20the%20URL%20after%20a%20question%20mark.%0A%2F%2F%20By%3A%20ZXMushroom63%0A%0A(function%20(Scratch)%20%7B%0A%20%20%22use%20strict%22%3B%0A%20%20if%20(!Scratch.extensions.unsandboxed)%20%7B%0A%20%20%20%20throw%20new%20Error(%22SearchParams%20must%20be%20run%20unsandboxed.%22)%3B%0A%20%20%7D%0A%0A%20%20class%20SearchApi%20%7B%0A%20%20%20%20getInfo()%20%7B%0A%20%20%20%20%20%20return%20%7B%0A%20%20%20%20%20%20%20%20id%3A%20%22zxmushroom63searchparams%22%2C%0A%20%20%20%20%20%20%20%20name%3A%20%22Search%20Params%22%2C%0A%20%20%20%20%20%20%20%20color1%3A%20%22%23b4b4b4%22%2C%0A%20%20%20%20%20%20%20%20color2%3A%20%22%239c9c9c%22%2C%0A%20%20%20%20%20%20%20%20color3%3A%20%22%23646464%22%2C%0A%20%20%20%20%20%20%20%20blocks%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22searchparam%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22value%20of%20search%20parameter%20%5BID%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20ID%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22x%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22occurencesofsearchparam%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22occurences%20of%20search%20parameter%20%5BID%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20ID%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22x%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22indexedsearchparam%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22index%20%5BI%5D%20of%20search%20parameters%20%5BID%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20ID%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22x%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20I%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.NUMBER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%201%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22setsearchparam%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22set%20search%20parameter%20%5BID%5D%20to%20%5BVAL%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20ID%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22x%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20VAL%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%2215%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22deletesearchparam%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22delete%20search%20parameter%20%5BID%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20ID%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22x%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22appendsearchparam%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22append%20search%20parameter%20%5BID%5D%20with%20value%20%5BVAL%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20ID%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22x%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20VAL%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%2215%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22hassearchparam%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.BOOLEAN%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22has%20search%20parameter%20%5BID%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20ID%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22x%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22searchparamslength%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22length%20of%20search%20parameters%22%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22searchparamatindex%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22search%20parameter%20%5BPARAM%5D%20at%20index%20%5BI%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20PARAM%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20menu%3A%20%22PARAM%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20I%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.NUMBER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%201%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20menus%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20PARAM%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20acceptReporters%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20items%3A%20%5B%22value%22%2C%20%22name%22%5D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20searchparam(%7B%20ID%20%7D)%20%7B%0A%20%20%20%20%20%20return%20new%20URLSearchParams(location.search).get(ID.toString())%20%7C%7C%20%22%22%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20occurencesofsearchparam(%7B%20ID%20%7D)%20%7B%0A%20%20%20%20%20%20return%20(%0A%20%20%20%20%20%20%20%20new%20URLSearchParams(location.search).getAll(ID.toString()).length%20%7C%7C%200%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20indexedsearchparam(%7B%20ID%2C%20I%20%7D)%20%7B%0A%20%20%20%20%20%20return%20(%0A%20%20%20%20%20%20%20%20new%20URLSearchParams(location.search).getAll(ID.toString())%5B%0A%20%20%20%20%20%20%20%20%20%20parseInt(I)%20-%201%0A%20%20%20%20%20%20%20%20%5D%20%7C%7C%20%22%22%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20setsearchparam(%7B%20ID%2C%20VAL%20%7D)%20%7B%0A%20%20%20%20%20%20var%20s%20%3D%20new%20URLSearchParams(location.search)%3B%0A%20%20%20%20%20%20s.set(ID.toString()%2C%20VAL.toString())%3B%0A%20%20%20%20%20%20history.replaceState(%22%22%2C%20%22%22%2C%20%22%3F%22%20%2B%20s.toString())%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20searchparamslength()%20%7B%0A%20%20%20%20%20%20var%20s%20%3D%20new%20URLSearchParams(location.search)%3B%0A%20%20%20%20%20%20%2F%2F%20%40ts-ignore%0A%20%20%20%20%20%20return%20typeof%20s.size%20!%3D%3D%20%22object%22%20%3F%20s.size%20%3A%200%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20deletesearchparam(%7B%20ID%20%7D)%20%7B%0A%20%20%20%20%20%20var%20s%20%3D%20new%20URLSearchParams(location.search)%3B%0A%20%20%20%20%20%20s.delete(ID.toString())%3B%0A%20%20%20%20%20%20history.replaceState(%22%22%2C%20%22%22%2C%20%22%3F%22%20%2B%20s.toString())%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20appendsearchparam(%7B%20ID%2C%20VAL%20%7D)%20%7B%0A%20%20%20%20%20%20var%20s%20%3D%20new%20URLSearchParams(location.search)%3B%0A%20%20%20%20%20%20s.append(ID.toString()%2C%20VAL.toString())%3B%0A%20%20%20%20%20%20history.replaceState(%22%22%2C%20%22%22%2C%20%22%3F%22%20%2B%20s.toString())%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20hassearchparam(%7B%20ID%20%7D)%20%7B%0A%20%20%20%20%20%20var%20s%20%3D%20new%20URLSearchParams(location.search)%3B%0A%20%20%20%20%20%20return%20s.has(ID.toString())%20%7C%7C%20false%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20searchparamatindex(%7B%20PARAM%2C%20I%20%7D)%20%7B%0A%20%20%20%20%20%20var%20index%20%3D%20parseInt(I)%20-%201%20%7C%7C%200%3B%0A%20%20%20%20%20%20index%20%3D%20Math.max(0%2C%20index)%3B%0A%20%20%20%20%20%20var%20s%20%3D%20new%20URLSearchParams(location.search)%3B%0A%20%20%20%20%20%20var%20values%20%3D%20PARAM.toString()%20%3D%3D%3D%20%22value%22%20%3F%20s.values()%20%3A%20s.keys()%3B%0A%20%20%20%20%20%20var%20i%20%3D%200%3B%0A%20%20%20%20%20%20for%20(const%20value%20of%20values)%20%7B%0A%20%20%20%20%20%20%20%20if%20(i%20%3D%3D%3D%20index)%20%7B%0A%20%20%20%20%20%20%20%20%20%20return%20value%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20i%2B%2B%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20return%20%22%22%3B%0A%20%20%20%20%7D%0A%20%20%7D%0A%20%20Scratch.extensions.register(new%20SearchApi())%3B%0A%7D)(Scratch)%3B%0A%20%7D)(Scratch)%3B","data:text/javascript;,(function(Scratch)%20%7B%20%2F%2F%20Name%3A%20Fetch%0A%2F%2F%20ID%3A%20fetch%0A%2F%2F%20Description%3A%20Make%20requests%20to%20the%20broader%20internet.%0A%0A(function%20(Scratch)%20%7B%0A%20%20%22use%20strict%22%3B%0A%0A%20%20class%20Fetch%20%7B%0A%20%20%20%20getInfo()%20%7B%0A%20%20%20%20%20%20return%20%7B%0A%20%20%20%20%20%20%20%20id%3A%20%22fetch%22%2C%0A%20%20%20%20%20%20%20%20name%3A%20%22Fetch%22%2C%0A%20%20%20%20%20%20%20%20blocks%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22get%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20%22GET%20%5BURL%5D%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20URL%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22https%3A%2F%2Fextensions.turbowarp.org%2Fhello.txt%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20get(args)%20%7B%0A%20%20%20%20%20%20return%20Scratch.fetch(args.URL)%0A%20%20%20%20%20%20%20%20.then((r)%20%3D%3E%20r.text())%0A%20%20%20%20%20%20%20%20.catch(()%20%3D%3E%20%22%22)%3B%0A%20%20%20%20%7D%0A%20%20%7D%0A%0A%20%20Scratch.extensions.register(new%20Fetch())%3B%0A%7D)(Scratch)%3B%0A%20%7D)(Scratch)%3B"]) {
+        vm.extensionManager.loadExtensionURL(extension);
+      }
+
+    } catch (e) {
+      handleError(e);
+    }
+  </script>
+  
+  
+    <script>
+      const getProjectData = (function() {
+        const storage = scaffolding.storage;
+        storage.onprogress = (total, loaded) => {
+          setProgress(interpolate(0.2, 0.98, loaded / total));
+        };
+        
+        storage.addWebStore(
+          [
+            storage.AssetType.ImageVector,
+            storage.AssetType.ImageBitmap,
+            storage.AssetType.Sound,
+            storage.AssetType.Font
+          ].filter(i => i),
+          (asset) => new URL('./assets/' + asset.assetId + '.' + asset.dataFormat, location).href
+        );
+        return () => new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = () => {
+          resolve(xhr.response);
+        };
+        xhr.onerror = () => {
+          if (location.protocol === 'file:') {
+            reject(new Error('Zip environment must be used from a website, not from a file URL.'));
+          } else {
+            reject(new Error('Request to load project data failed.'));
+          }
+        };
+        xhr.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setProgress(interpolate(0.1, 0.2, e.loaded / e.total));
+          }
+        };
+        xhr.responseType = 'arraybuffer';
+        xhr.open('GET', "./assets/project.json");
+        xhr.send();
+      });
+      })();
+    </script>
+  <script>
+    const run = async () => {
+      const projectData = await getProjectData();
+      await scaffolding.loadProject(projectData);
+      setProgress(1);
+      loadingScreen.hidden = true;
+      if (true) {
+        scaffolding.start();
+      } else {
+        launchScreen.hidden = false;
+        launchScreen.addEventListener('click', () => {
+          launchScreen.hidden = true;
+          scaffolding.start();
+        });
+        launchScreen.focus();
+      }
+    };
+    run().catch(handleError);
+  </script>
+</body>
+</html>
